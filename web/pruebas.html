@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FeedCraft · Pruebas</title>
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    .pruebas { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+    .pruebas h1 { margin: 0 0 4px; font-size: 22px; }
+    .pruebas > p { margin: 0 0 20px; color: var(--texto-suave); }
+    .resumen { margin: 0 0 16px; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--borde); text-align: left; vertical-align: top; font-size: 14px; }
+    th { color: var(--texto-suave); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:last-child td { border-bottom: 0; }
+    .ok { color: var(--exito); font-weight: 700; }
+    .falla { color: var(--peligro); font-weight: 700; }
+    .espera { color: var(--texto-suave); }
+    td.detalle { color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+    .tabla-caja { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <main class="pruebas">
+    <h1>Pruebas en el navegador</h1>
+    <p>Corren contra el motor real (wasm en el Web Worker). Las pruebas del motor se ejecutan con <code>cargo test</code>.</p>
+    <p class="resumen" id="resumen">Ejecutando…</p>
+    <div class="tabla-caja">
+      <table>
+        <thead><tr><th>Prueba</th><th>Verifica</th><th>Resultado</th><th>Detalle</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+    <p><button id="otra-vez" class="boton" type="button" disabled>Volver a ejecutar</button></p>
+  </main>
+  <script type="module">
+    import { PRUEBAS, correrPruebas } from './js/pruebas.js';
+
+    const filas = document.getElementById('filas');
+    const boton = document.getElementById('otra-vez');
+
+    function preparar() {
+      filas.innerHTML = '';
+      for (const p of PRUEBAS) {
+        const fila = document.createElement('tr');
+        fila.id = `fila-${p.id}`;
+        fila.innerHTML = `<td><strong>${p.id}</strong> ${p.nombre}</td><td>${p.verifica}</td><td class="espera">…</td><td class="detalle"></td>`;
+        filas.append(fila);
+      }
+    }
+
+    async function ejecutar() {
+      document.body.dataset.estado = 'corriendo';
+      boton.disabled = true;
+      preparar();
+      const resultados = await correrPruebas((r) => {
+        const celdas = document.getElementById(`fila-${r.id}`).children;
+        celdas[2].className = r.ok ? 'ok' : 'falla';
+        celdas[2].textContent = r.ok ? 'Pasa' : 'Falla';
+        celdas[3].textContent = `${r.detalle} (${r.ms} ms)`;
+      });
+      const pasan = resultados.filter((r) => r.ok).length;
+      document.getElementById('resumen').textContent = `${pasan} de ${resultados.length} pruebas pasan`;
+      window.resultados = resultados;
+      document.body.dataset.estado = 'terminado';
+      boton.disabled = false;
+    }
+
+    boton.addEventListener('click', ejecutar);
+    ejecutar();
+  </script>
+</body>
+</html>

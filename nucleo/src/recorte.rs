@@ -77,9 +77,10 @@ pub fn marco_inicial(ancho: u32, alto: u32, formato: Formato, cx: f64, cy: f64, 
     Marco { x: x / w, y: y / h, ancho: mw / w, alto: mh / h }
 }
 
-/// Pasa un marco normalizado a píxeles de la foto. Corrige la proporción
-/// exacta del formato y lo mantiene dentro de la foto, aunque la interfaz
-/// mande valores imprecisos.
+/// Pasa un marco normalizado a píxeles enteros de la foto. Corrige la
+/// proporción del formato (con menos de 1 px de error) y lo mantiene dentro de
+/// la foto, aunque la interfaz mande valores imprecisos. Recortar en píxeles
+/// enteros evita desplazar la imagen medio píxel.
 pub fn a_pixeles(marco: Marco, ancho: u32, alto: u32, formato: Formato) -> RecortePx {
     let (w, h) = (f64::from(ancho), f64::from(alto));
     let proporcion = formato.proporcion();
@@ -87,15 +88,15 @@ pub fn a_pixeles(marco: Marco, ancho: u32, alto: u32, formato: Formato) -> Recor
 
     let cx = (valido(marco.x, 0.0) + valido(marco.ancho, 1.0) / 2.0) * w;
     let cy = (valido(marco.y, 0.0) + valido(marco.alto, 1.0) / 2.0) * h;
-    let mut mw = (valido(marco.ancho, 1.0) * w).clamp(1.0, w);
-    let mut mh = mw / proporcion;
+    let mut mw = (valido(marco.ancho, 1.0) * w).clamp(1.0, w).round();
+    let mut mh = (mw / proporcion).round().max(1.0);
     if mh > h {
         mh = h;
-        mw = mh * proporcion;
+        mw = (mh * proporcion).round().clamp(1.0, w);
     }
     RecortePx {
-        x: (cx - mw / 2.0).clamp(0.0, w - mw),
-        y: (cy - mh / 2.0).clamp(0.0, h - mh),
+        x: (cx - mw / 2.0).round().clamp(0.0, w - mw),
+        y: (cy - mh / 2.0).round().clamp(0.0, h - mh),
         ancho: mw,
         alto: mh,
     }

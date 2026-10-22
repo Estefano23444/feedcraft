@@ -25,6 +25,14 @@ pub fn version() -> String {
     format!("FeedCraft núcleo {}", env!("CARGO_PKG_VERSION"))
 }
 
+/// RF-15: nombre del archivo exportado, por ejemplo `foto_film-calido_4x5.jpg`.
+/// `formato` es "1:1", "4:5", "3:4" o "9:16"; `estilo` puede ir vacío.
+#[wasm_bindgen]
+pub fn nombre_archivo(base: &str, estilo: &str, formato: &str) -> String {
+    let formato = recorte::Formato::desde_texto(formato).unwrap_or_default();
+    exportar::nombre_archivo(base, Some(estilo), formato)
+}
+
 /// Una foto abierta en el editor. Se decodifica una vez y todas las vistas
 /// previas y exportaciones parten de ella.
 #[wasm_bindgen]

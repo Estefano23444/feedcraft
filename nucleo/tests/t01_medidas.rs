@@ -87,8 +87,9 @@ fn el_marco_siempre_tiene_la_proporcion_exacta_y_cabe() {
     for formato in Formato::TODOS {
         for marco in marcos {
             let r = a_pixeles(marco, 4000, 3000, formato);
-            assert!((r.ancho / r.alto - formato.proporcion()).abs() < 1e-9, "{formato:?} {marco:?}");
-            assert!(r.x >= 0.0 && r.y >= 0.0 && r.x + r.ancho <= 4000.0 + 1e-9 && r.y + r.alto <= 3000.0 + 1e-9);
+            assert!((r.ancho - r.alto * formato.proporcion()).abs() <= 1.0, "{formato:?} {marco:?}: {r:?}");
+            assert!([r.x, r.y, r.ancho, r.alto].iter().all(|v| v.fract() == 0.0), "píxeles enteros: {r:?}");
+            assert!(r.x >= 0.0 && r.y >= 0.0 && r.x + r.ancho <= 4000.0 && r.y + r.alto <= 3000.0);
         }
     }
 }

@@ -22,6 +22,8 @@ const estado = {
   zoom: 1,
   ampliar: false,
   enfoque: 30,
+  calidad: 92,
+  estilo: '',
 };
 
 /** Marco actual en coordenadas normalizadas, derivado de formato, centro y zoom. */
@@ -37,6 +39,9 @@ function parametrosExportacion() {
     ajustes: estado.ajustes,
     ampliar: estado.ampliar,
     enfoque: estado.enfoque,
+    calidad: estado.calidad,
+    nombre_base: estado.nombre,
+    estilo: estado.estilo,
   };
 }
 
@@ -172,8 +177,12 @@ $('enfoque').addEventListener('input', (e) => {
   $('enfoque-valor').textContent = e.target.value;
   pintarPista(e.target);
 });
-pintarPista($('enfoque'));
-pintarPista($('zoom'));
+$('calidad').addEventListener('input', (e) => {
+  estado.calidad = Number(e.target.value);
+  $('calidad-valor').textContent = e.target.value;
+  pintarPista(e.target);
+});
+for (const id of ['enfoque', 'calidad', 'zoom']) pintarPista($(id));
 
 // RF-11: comparar con la foto sin ajustes.
 $('btn-original').addEventListener('click', () => {
@@ -271,8 +280,7 @@ $('btn-exportar').addEventListener('click', async () => {
   ocupado(true, 'Exportando a resolución completa…');
   const inicio = performance.now();
   try {
-    const { jpeg } = await puente.llamar('exportar', parametrosExportacion());
-    const nombre = `${estado.nombre}_${formatoPorId(estado.formato).etiqueta}.jpg`;
+    const { jpeg, nombre } = await puente.llamar('exportar', parametrosExportacion());
     descargar(new Blob([jpeg], { type: 'image/jpeg' }), nombre);
     avisar(`Listo: ${nombre} (${((performance.now() - inicio) / 1000).toFixed(1)} s)`);
   } catch (e) {

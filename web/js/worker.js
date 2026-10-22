@@ -40,10 +40,12 @@ const manejadores = {
     return { valor: JSON.parse(exigirFoto().evaluar(JSON.stringify(parametros))) };
   },
 
+  /** `parametros` incluye `nombre_base` y `estilo` para el nombre del archivo (RF-15). */
   exportar(parametros) {
     const inicio = performance.now();
     const jpeg = exigirFoto().exportar(JSON.stringify(parametros));
-    return { valor: { jpeg: jpeg.buffer, ms: performance.now() - inicio }, transferir: [jpeg.buffer] };
+    const nombre = nucleo.nombre_archivo(parametros.nombre_base ?? 'foto', parametros.estilo ?? '', parametros.formato);
+    return { valor: { jpeg: jpeg.buffer, nombre, ms: performance.now() - inicio }, transferir: [jpeg.buffer] };
   },
 };
 
