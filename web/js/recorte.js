@@ -61,7 +61,11 @@ export function crearMarco(caja, { alMover, alSoltar, alZoom }) {
 
   marco.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    marco.setPointerCapture(e.pointerId);
+    try {
+      marco.setPointerCapture(e.pointerId);
+    } catch {
+      // Sin captura el arrastre sigue funcionando mientras el puntero esté sobre el marco.
+    }
     const caja_ = caja.getBoundingClientRect();
     arrastre = { id: e.pointerId, px: e.clientX, py: e.clientY, x: actual.x, y: actual.y, w: caja_.width, h: caja_.height };
     marco.classList.add('moviendo');

@@ -21,7 +21,7 @@
     <div class="barra-acciones">
       <button id="btn-config-ia" class="boton boton-fantasma" type="button" title="Clave de Groq, idioma y modelo">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
-        Configurar IA
+        <span class="texto-largo">Configurar IA</span><span class="texto-corto">IA</span>
       </button>
       <button id="btn-nueva" class="boton boton-fantasma" type="button" hidden>Otra foto</button>
     </div>
@@ -36,8 +36,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="m21 15-4.5-4.5L6 21"/>
           </svg>
-          <strong>Arrastra una foto aquí</strong>
-          <span>o haz clic para elegirla</span>
+          <strong class="solo-escritorio">Arrastra una foto aquí</strong>
+          <span class="solo-escritorio">o haz clic para elegirla</span>
+          <strong class="solo-tactil">Toca para elegir una foto</strong>
           <small>JPEG, PNG o WebP · hasta 50 MB</small>
         </label>
         <p class="nota-privacidad">La foto se procesa en tu navegador. No sale de tu equipo.</p>
@@ -67,11 +68,18 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 5.8L20 10l-5.6 2.2L12 18l-2.4-5.8L4 10l5.6-2.2z"/><path d="M19 14l1 2.5 2.5 1-2.5 1L19 21l-1-2.5-2.5-1 2.5-1z"/></svg>
             Sugerir con IA
           </button>
-          <p class="detalle nota-ia">Propone estilo, formato, caption y hashtags. Envía a Groq solo una copia de 512 px.</p>
+          <p class="detalle nota-ia">Propone 3 versiones listas para publicar, con caption y hashtags. Envía a Groq solo una copia de 512 px.</p>
+          <label class="interruptor">
+            <input id="ia-auto" type="checkbox">
+            <span>Proponer las 3 versiones al abrir cada foto</span>
+          </label>
           <div id="ia-error" class="mensaje mensaje-error" role="alert" hidden></div>
           <div id="ia-resultado" hidden>
-            <h3 class="subgrupo">Propuestas de la IA</h3>
-            <div id="ia-variantes" class="variantes-ia"></div>
+            <div class="grupo-cabecera">
+              <h3 class="subgrupo">Tus 3 versiones</h3>
+              <span id="versiones-tiempo" class="detalle"></span>
+            </div>
+            <div id="ia-variantes" class="versiones"></div>
             <label class="etiqueta" for="caption">Caption</label>
             <textarea id="caption" class="area" rows="4"></textarea>
             <label class="etiqueta" for="hashtags">Hashtags</label>
@@ -124,9 +132,12 @@
             <output for="calidad" id="calidad-valor">95</output>
             <input id="calidad" type="range" min="80" max="100" step="1" value="95">
           </div>
+        </section>
+
+        <div class="panel-pie">
           <p class="detalle" id="medidas-salida"></p>
           <button id="btn-exportar" class="boton boton-primario boton-ancho" type="button">Descargar JPEG</button>
-        </section>
+        </div>
       </aside>
     </section>
   </main>

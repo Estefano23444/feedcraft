@@ -30,6 +30,12 @@ const estado = {
   /** Última sugerencia de la IA ya validada por Rust, y la variante elegida. */
   sugerencia: null,
   variante: 0,
+  /** RF-19: las 3 versiones exportadas a resolución completa. */
+  versiones: [],
+  /** Sube con cada regeneración: una exportación de una tanda vieja se descarta. */
+  tanda: 0,
+  /** Momento en que empezó el flujo de un clic, para medir los 10 s. */
+  inicioFlujo: null,
 };
 
 /** Marco actual en coordenadas normalizadas, derivado de formato, centro y zoom. */
@@ -83,8 +89,10 @@ async function cargarArchivo(archivo) {
     return;
   }
 
+  const inicio = performance.now();
   mostrarEditor(true);
   ocupado(true, 'Abriendo la foto…');
+  let abierta = false;
   try {
     const bytes = await archivo.arrayBuffer();
     const info = await puente.llamar('cargar', { bytes, lado: LADO_VISTA }, [bytes]);
@@ -93,6 +101,9 @@ async function cargarArchivo(archivo) {
     estado.ajustes = { ...AJUSTES_CERO };
     estado.estilo = '';
     estado.sugerencia = null;
+    estado.versiones = [];
+    estado.tanda++;
+    $('versiones-tiempo').textContent = '';
     $('ia-resultado').hidden = true;
     $('ia-error').hidden = true;
     marcarEstilo();
@@ -108,11 +119,16 @@ async function cargarArchivo(archivo) {
     prepararLienzo(info);
     actualizarRecorte();
     pedirVista();
+    abierta = true;
   } catch (e) {
     avisar(e.message, true);
     if (!estado.info) mostrarEditor(false);
   } finally {
     ocupado(false);
+  }
+  // Flujo de un clic (sección 2): si la IA ya está configurada, abrir la foto basta.
+  if (abierta && groq.leerAutomatico() && groq.leerClave() && groq.avisoAceptado()) {
+    sugerirConIa({ inicio });
   }
 }
 
@@ -187,11 +203,13 @@ $('enfoque').addEventListener('input', (e) => {
   estado.enfoque = Number(e.target.value);
   $('enfoque-valor').textContent = e.target.value;
   pintarPista(e.target);
+  programarVersiones();
 });
 $('calidad').addEventListener('input', (e) => {
   estado.calidad = Number(e.target.value);
   $('calidad-valor').textContent = e.target.value;
   pintarPista(e.target);
+  programarVersiones();
 });
 for (const id of ['enfoque', 'calidad', 'zoom']) pintarPista($(id));
 
@@ -206,6 +224,7 @@ for (const boton of $('aviso-pequena').querySelectorAll('[data-ampliar]')) {
   boton.addEventListener('click', () => {
     estado.ampliar = boton.dataset.ampliar === 'true';
     evaluarSalida();
+    programarVersiones();
   });
 }
 
@@ -216,6 +235,7 @@ function actualizarRecorte() {
   marco.fijar(m);
   evaluarSalida();
   if (estado.ajustes.vineta !== 0) pedirVista();
+  programarVersiones();
 }
 
 /** Pregunta al motor qué medidas tendrá la exportación (RF-08). */
@@ -351,9 +371,13 @@ async function configurarIa(mensaje = '') {
   return true;
 }
 
-$('btn-ia').addEventListener('click', sugerirConIa);
+$('btn-ia').addEventListener('click', () => sugerirConIa());
 
-async function sugerirConIa() {
+$('ia-auto').checked = groq.leerAutomatico();
+$('ia-auto').addEventListener('change', (e) => groq.guardarAutomatico(e.target.checked));
+
+/** Pide la sugerencia y prepara las 3 versiones. `inicio` mide el flujo de un clic. */
+async function sugerirConIa({ inicio = performance.now() } = {}) {
   if (!estado.info) return;
   if (!groq.leerClave()) {
     await configurarIa('Para usar la IA necesitas una clave de Groq.');
@@ -368,6 +392,7 @@ async function sugerirConIa() {
   $('ia-error').hidden = true;
   $('btn-ia').disabled = true;
   ocupado(true, 'La IA está mirando tu foto…');
+  estado.inicioFlujo = inicio;
   try {
     const imagenBase64 = await puente.llamar('copiaIa');
     const { sugerencia, error } = await groq.pedirSugerencia({
@@ -393,7 +418,7 @@ function mostrarErrorIa(mensaje) {
   $('ia-error').hidden = false;
 }
 
-/** Aplica formato, centro de interés (RF-07) y la primera variante. */
+/** Aplica formato, centro de interés (RF-07) y la primera variante, y prepara las 3 versiones. */
 function aplicarSugerencia(s) {
   estado.sugerencia = s;
   estado.centro = { cx: s.recorte.cx, cy: s.recorte.cy };
@@ -401,9 +426,10 @@ function aplicarSugerencia(s) {
   $('zoom').value = '100';
   $('zoom-valor').textContent = '100 %';
   pintarPista($('zoom'));
-  elegirFormato(s.formato);
   pintarSugerencia();
+  elegirFormato(s.formato);
   aplicarVariante(0);
+  generarVersiones();
 }
 
 function aplicarVariante(i) {
@@ -414,30 +440,131 @@ function aplicarVariante(i) {
   estado.ajustes = { ...AJUSTES_CERO, ...v.ajustes };
   controles.mostrar(estado.ajustes);
   marcarEstilo();
-  for (const b of $('ia-variantes').children) b.setAttribute('aria-pressed', String(Number(b.dataset.variante) === i));
+  for (const tarjeta of $('ia-variantes').children) {
+    tarjeta.setAttribute('aria-pressed', String(Number(tarjeta.dataset.variante) === i));
+  }
   pedirVista();
 }
+
+const nombreEstilo = (id) => estado.catalogo.find((e) => e.id === id)?.nombre ?? id;
 
 function pintarSugerencia() {
   const s = estado.sugerencia;
   const lista = $('ia-variantes');
   lista.innerHTML = '';
   s.variantes.forEach((v, i) => {
-    const boton = document.createElement('button');
-    boton.type = 'button';
-    boton.className = 'variante-ia';
-    boton.dataset.variante = String(i);
+    const tarjeta = document.createElement('div');
+    tarjeta.className = 'version';
+    tarjeta.dataset.variante = String(i);
+    tarjeta.tabIndex = 0;
+    tarjeta.setAttribute('role', 'button');
+    tarjeta.setAttribute('aria-label', `Versión ${i + 1}: ${nombreEstilo(v.estilo)}. Editarla`);
+
+    const miniatura = document.createElement('canvas');
+    miniatura.className = 'miniatura';
+    const texto = document.createElement('div');
+    texto.className = 'version-texto';
     const nombre = document.createElement('strong');
-    nombre.textContent = `${i + 1}. ${estado.catalogo.find((e) => e.id === v.estilo)?.nombre ?? v.estilo}`;
+    nombre.textContent = `${i + 1}. ${nombreEstilo(v.estilo)}`;
     const motivo = document.createElement('span');
     motivo.textContent = v.motivo || 'Sin comentario';
-    boton.append(nombre, motivo);
-    boton.addEventListener('click', () => aplicarVariante(i));
-    lista.append(boton);
+    const descarga = document.createElement('button');
+    descarga.type = 'button';
+    descarga.className = 'boton';
+    descarga.dataset.descargar = String(i);
+    descarga.disabled = true;
+    descarga.textContent = 'Preparando…';
+    descarga.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const version = estado.versiones[i];
+      if (version?.estado === 'lista') descargar(version.blob, version.nombre);
+    });
+    texto.append(nombre, motivo, descarga);
+    tarjeta.append(miniatura, texto);
+
+    tarjeta.addEventListener('click', () => aplicarVariante(i));
+    tarjeta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        aplicarVariante(i);
+      }
+    });
+    lista.append(tarjeta);
   });
   $('caption').value = s.caption;
   $('hashtags').value = s.hashtags.join(' ');
+  $('versiones-tiempo').textContent = '';
   $('ia-resultado').hidden = false;
+}
+
+// ---------- Las 3 versiones (RF-19) ----------
+// Se exportan a resolución completa en segundo plano, con el encuadre actual.
+// Si cambia el formato o el recorte, se regeneran; una tanda vieja se descarta.
+
+let temporizadorVersiones;
+function programarVersiones() {
+  if (!estado.sugerencia) return;
+  clearTimeout(temporizadorVersiones);
+  temporizadorVersiones = setTimeout(generarVersiones, 400);
+}
+
+async function generarVersiones() {
+  clearTimeout(temporizadorVersiones);
+  const s = estado.sugerencia;
+  if (!s || !estado.info) return;
+  const tanda = ++estado.tanda;
+  estado.versiones = s.variantes.map(() => ({ estado: 'pendiente' }));
+  pintarVersiones();
+  await pintarMiniaturas(tanda);
+
+  for (const [i, v] of s.variantes.entries()) {
+    if (tanda !== estado.tanda) return;
+    try {
+      const { jpeg, nombre } = await puente.llamar('exportar', { ...parametrosExportacion(), ajustes: v.ajustes, estilo: v.estilo });
+      if (tanda !== estado.tanda) return;
+      estado.versiones[i] = { estado: 'lista', blob: new Blob([jpeg], { type: 'image/jpeg' }), nombre };
+    } catch (e) {
+      estado.versiones[i] = { estado: 'error', mensaje: e.message };
+    }
+    pintarVersiones();
+  }
+  if (estado.inicioFlujo !== null) {
+    const segundos = (performance.now() - estado.inicioFlujo) / 1000;
+    $('versiones-tiempo').textContent = `listas en ${segundos.toFixed(1).replace('.', ',')} s`;
+    estado.inicioFlujo = null;
+  }
+}
+
+function pintarVersiones() {
+  for (const boton of $('ia-variantes').querySelectorAll('[data-descargar]')) {
+    const version = estado.versiones[Number(boton.dataset.descargar)];
+    boton.disabled = version?.estado !== 'lista';
+    boton.classList.toggle('boton-primario', version?.estado === 'lista');
+    boton.textContent =
+      version?.estado === 'lista' ? `Descargar · ${Math.round(version.blob.size / 1024)} KB`
+      : version?.estado === 'error' ? 'No se pudo exportar'
+      : 'Preparando…';
+    boton.title = version?.estado === 'lista' ? version.nombre : version?.mensaje ?? '';
+  }
+}
+
+/** Miniaturas del encuadre con cada variante, hechas desde la vista previa. */
+async function pintarMiniaturas(tanda) {
+  const m = marcoActual();
+  const f = formatoPorId(estado.formato);
+  for (const [i, v] of estado.sugerencia.variantes.entries()) {
+    const r = await puente.llamar('vista', { ajustes: v.ajustes, marco: m });
+    if (tanda !== estado.tanda) return;
+    const fuente = new OffscreenCanvas(r.ancho, r.alto);
+    fuente.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(r.rgba), r.ancho, r.alto), 0, 0);
+    const lienzo = $('ia-variantes').querySelector(`[data-variante="${i}"] canvas`);
+    if (!lienzo) return;
+    lienzo.width = 144;
+    lienzo.height = Math.round((144 * f.alto) / f.ancho);
+    const ctx = lienzo.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(fuente, m.x * r.ancho, m.y * r.alto, m.ancho * r.ancho, m.alto * r.alto, 0, 0, lienzo.width, lienzo.height);
+  }
 }
 
 $('btn-copiar').addEventListener('click', async () => {

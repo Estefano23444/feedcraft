@@ -16,6 +16,7 @@ export const IDIOMAS = ['español', 'English', 'português', 'français', 'itali
 const CLAVE_CONFIG = 'feedcraft.ia.config';
 const CLAVE_GROQ = 'feedcraft.ia.clave';
 const CLAVE_AVISO = 'feedcraft.ia.aviso-aceptado';
+const CLAVE_AUTO = 'feedcraft.ia.automatico';
 const TIEMPO_MAXIMO_MS = 45_000;
 
 // ---------- Almacenamiento solo en este navegador (RF-20, RNF-06) ----------
@@ -51,6 +52,9 @@ export const leerClave = () => leer(CLAVE_GROQ) ?? '';
 export const guardarClave = (clave) => escribir(CLAVE_GROQ, clave.trim() || null);
 export const avisoAceptado = () => leer(CLAVE_AVISO) === '1';
 export const aceptarAviso = () => escribir(CLAVE_AVISO, '1');
+/** Flujo de un clic: pedir las 3 versiones al abrir cada foto (activo por defecto). */
+export const leerAutomatico = () => leer(CLAVE_AUTO) !== '0';
+export const guardarAutomatico = (activo) => escribir(CLAVE_AUTO, activo ? '1' : '0');
 
 // ---------- Petición ----------
 

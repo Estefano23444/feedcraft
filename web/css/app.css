@@ -452,22 +452,54 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .nota-ia { margin: 8px 0 0; }
 #ia-resultado { margin-top: 14px; }
 
-.variantes-ia { display: grid; gap: 8px; margin-bottom: 12px; }
+.interruptor { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; cursor: pointer; }
+.interruptor input { width: 16px; height: 16px; margin: 0; accent-color: var(--acento); }
 
-.variante-ia {
+/* Las 3 versiones (RF-19): miniatura, estilo, motivo y descarga. */
+
+.versiones { display: grid; gap: 8px; margin-bottom: 12px; }
+
+.version {
   display: grid;
-  gap: 2px;
-  padding: 10px 12px;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
   border: 1px solid var(--borde);
   border-radius: var(--radio-chico);
   background: var(--superficie);
-  text-align: left;
   cursor: pointer;
 }
-.variante-ia:hover { border-color: var(--acento); }
-.variante-ia[aria-pressed="true"] { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; background: var(--acento-suave); }
-.variante-ia strong { font-size: 14px; }
-.variante-ia span { color: var(--texto-suave); font-size: 13px; }
+.version:hover { border-color: var(--acento); }
+.version[aria-pressed="true"] { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; background: var(--acento-suave); }
+.version:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+.miniatura {
+  display: block;
+  width: 72px;
+  height: auto;
+  border-radius: 4px;
+  background: var(--superficie-2);
+}
+
+.version-texto { display: grid; gap: 2px; min-width: 0; }
+.version-texto strong { font-size: 14px; }
+.version-texto span { color: var(--texto-suave); font-size: 12.5px; line-height: 1.35; }
+.version-texto .boton { justify-self: start; min-height: 30px; margin-top: 4px; padding: 0 10px; font-size: 12.5px; }
+
+/* El botón de descarga queda siempre a la vista al pie del panel. */
+
+.panel { display: flex; flex-direction: column; padding-bottom: 0; }
+.panel-pie {
+  position: sticky;
+  bottom: 0;
+  margin: auto -16px 0;
+  padding: 10px 16px 16px;
+  background: var(--superficie);
+  border-top: 1px solid var(--borde);
+  box-shadow: 0 -6px 16px rgb(0 0 0 / 0.04);
+}
+.panel-pie .detalle { margin: 0 0 8px; }
 
 .etiqueta { display: block; margin: 10px 0 4px; font-size: 13px; font-weight: 600; }
 
@@ -526,6 +558,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .toast.error { background: #8e1c1c; }
 
 /* ---------- Móvil (RNF-09) ---------- */
+
+.barra .boton { white-space: nowrap; }
+.texto-corto, .solo-tactil { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .solo-escritorio { display: none; }
+  .solo-tactil { display: inline; }
+}
+
+@media (max-width: 480px) {
+  .barra { padding: 0 8px 0 12px; }
+  .barra .boton { padding: 0 10px; }
+  .texto-largo { display: none; }
+  .texto-corto { display: inline; }
+}
 
 @media (max-width: 860px) {
   .editor { grid-template-columns: 1fr; height: auto; }
