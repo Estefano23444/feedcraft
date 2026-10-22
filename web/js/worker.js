@@ -5,8 +5,36 @@ import iniciar, * as nucleo from '../pkg/nucleo.js';
 
 const listo = iniciar();
 
+/** La foto abierta. Vive aquí, en la memoria del wasm, mientras se edita. */
+let editor = null;
+
+function exigirFoto() {
+  if (!editor) throw new Error('Primero abre una foto.');
+  return editor;
+}
+
 const manejadores = {
   version: () => ({ valor: nucleo.version() }),
+
+  cargar({ bytes, lado }) {
+    const inicio = performance.now();
+    editor?.free();
+    editor = null;
+    editor = new nucleo.Editor(new Uint8Array(bytes), lado);
+    const info = JSON.parse(editor.info());
+    info.ms = Math.round(performance.now() - inicio);
+    return { valor: info };
+  },
+
+  vista(parametros) {
+    const ed = exigirFoto();
+    const inicio = performance.now();
+    const rgba = ed.vista_previa(JSON.stringify(parametros));
+    return {
+      valor: { rgba: rgba.buffer, ancho: ed.vista_ancho(), alto: ed.vista_alto(), ms: performance.now() - inicio },
+      transferir: [rgba.buffer],
+    };
+  },
 };
 
 self.onmessage = async (evento) => {
