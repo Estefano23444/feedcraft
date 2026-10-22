@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FeedCraft</title>
+</head>
+<body>
+  <h1>FeedCraft</h1>
+  <p id="estado">Cargando el motor…</p>
+  <script type="module">
+    import { crearPuente } from './js/puente.js';
+    const puente = crearPuente();
+    const estado = document.getElementById('estado');
+    try {
+      estado.textContent = `Rust responde: ${await puente.llamar('version')}`;
+    } catch (e) {
+      estado.textContent = `Error: ${e.message}`;
+    }
+  </script>
+</body>
+</html>

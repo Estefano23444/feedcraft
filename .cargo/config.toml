@@ -1,0 +1,4 @@
+# SIMD de WebAssembly: lo soportan las dos últimas versiones de Chrome, Edge,
+# Firefox y Safari (RNF-08) y acelera la redimensión y los ajustes de color.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

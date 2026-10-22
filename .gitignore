@@ -1,0 +1,12 @@
+# Compilación
+/target/
+/web/pkg/
+node_modules/
+.playwright-mcp/
+
+# Fotos personales del corpus: nunca se suben (el repo es público)
+/pruebas/corpus/*
+!/pruebas/corpus/LEEME.md
+
+# Imágenes sintéticas: se regeneran con `npm run sinteticas`
+/pruebas/sinteticas/

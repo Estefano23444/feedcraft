@@ -1,0 +1,13 @@
+{
+  "name": "feedcraft",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Editor de imágenes para Instagram: Rust + WebAssembly + IA",
+  "type": "module",
+  "scripts": {
+    "build": "wasm-pack build nucleo --target web --release --out-dir ../web/pkg --no-pack",
+    "dev": "node scripts/servidor.mjs",
+    "test": "cargo test --workspace && node scripts/medir-wasm.mjs",
+    "sinteticas": "cargo run --release -p nucleo --example generar_pruebas"
+  }
+}
