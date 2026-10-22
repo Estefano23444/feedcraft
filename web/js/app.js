@@ -2,7 +2,7 @@
 // Todo el trabajo de píxeles ocurre en el Web Worker (RNF-02).
 
 import { crearPuente } from './puente.js';
-import { AJUSTES_CERO, crearControles } from './ajustes.js';
+import { AJUSTES_CERO, crearControles, pintarPista } from './ajustes.js';
 import { FORMATOS, calcularMarco, crearMarco, formatoPorId } from './recorte.js';
 
 const LADO_VISTA = 1600;
@@ -21,6 +21,7 @@ const estado = {
   centro: { cx: 0.5, cy: 0.5 },
   zoom: 1,
   ampliar: false,
+  enfoque: 30,
 };
 
 /** Marco actual en coordenadas normalizadas, derivado de formato, centro y zoom. */
@@ -35,6 +36,7 @@ function parametrosExportacion() {
     marco: marcoActual(),
     ajustes: estado.ajustes,
     ampliar: estado.ampliar,
+    enfoque: estado.enfoque,
   };
 }
 
@@ -81,9 +83,12 @@ async function cargarArchivo(archivo) {
     estado.centro = { cx: 0.5, cy: 0.5 };
     estado.zoom = 1;
     estado.ampliar = false;
+    estado.original = false;
     controles.mostrar(estado.ajustes);
+    $('btn-original').setAttribute('aria-pressed', 'false');
     $('zoom').value = '100';
     $('zoom-valor').textContent = '100 %';
+    pintarPista($('zoom'));
     prepararLienzo(info);
     actualizarRecorte();
     pedirVista();
@@ -141,6 +146,8 @@ function elegirFormato(id) {
 const marco = crearMarco($('lienzo-caja'), {
   alMover(centro) {
     estado.centro = centro;
+    // La viñeta sigue al encuadre.
+    if (estado.ajustes.vineta !== 0) pedirVista();
   },
   alSoltar() {
     actualizarRecorte();
@@ -156,8 +163,24 @@ function fijarZoom(zoom) {
   estado.zoom = Math.min(Math.max(zoom, 1), 3);
   $('zoom').value = String(Math.round(estado.zoom * 100));
   $('zoom-valor').textContent = `${Math.round(estado.zoom * 100)} %`;
+  pintarPista($('zoom'));
   if (estado.info) actualizarRecorte();
 }
+
+$('enfoque').addEventListener('input', (e) => {
+  estado.enfoque = Number(e.target.value);
+  $('enfoque-valor').textContent = e.target.value;
+  pintarPista(e.target);
+});
+pintarPista($('enfoque'));
+pintarPista($('zoom'));
+
+// RF-11: comparar con la foto sin ajustes.
+$('btn-original').addEventListener('click', () => {
+  estado.original = !estado.original;
+  $('btn-original').setAttribute('aria-pressed', String(estado.original));
+  pedirVista();
+});
 
 for (const boton of $('aviso-pequena').querySelectorAll('[data-ampliar]')) {
   boton.addEventListener('click', () => {
@@ -172,6 +195,7 @@ function actualizarRecorte() {
   estado.centro = { cx: m.x + m.ancho / 2, cy: m.y + m.alto / 2 };
   marco.fijar(m);
   evaluarSalida();
+  if (estado.ajustes.vineta !== 0) pedirVista();
 }
 
 /** Pregunta al motor qué medidas tendrá la exportación (RF-08). */
@@ -226,10 +250,11 @@ async function procesarVistas() {
     vistaPedida = false;
     const inicio = performance.now();
     try {
-      const r = await puente.llamar('vista', { ajustes: estado.ajustes, original: estado.original });
+      const r = await puente.llamar('vista', { ajustes: estado.ajustes, marco: marcoActual(), original: estado.original });
       const imagen = new ImageData(new Uint8ClampedArray(r.rgba), r.ancho, r.alto);
       $('lienzo').getContext('2d').putImageData(imagen, 0, 0);
-      $('tiempo-vista').textContent = `Vista previa: ${Math.round(performance.now() - inicio)} ms`;
+      $('tiempo-vista').textContent =
+        `Vista previa: ${Math.round(performance.now() - inicio)} ms (motor ${Math.round(r.ms)} ms)`;
     } catch (e) {
       avisar(e.message, true);
     }

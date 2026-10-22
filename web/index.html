@@ -49,7 +49,10 @@
         </div>
         <div class="escenario-pie">
           <span id="info-foto"></span>
-          <span id="tiempo-vista" title="Tiempo de la última vista previa"></span>
+          <span class="pie-derecha">
+            <span id="tiempo-vista" title="Tiempo de la última vista previa"></span>
+            <button id="btn-original" class="boton" type="button" aria-pressed="false" title="Comparar con la foto sin ajustes">Original</button>
+          </span>
         </div>
         <div id="cargando" class="cargando" hidden><div><div class="girador"></div><span id="cargando-texto">Abriendo la foto…</span></div></div>
       </div>
@@ -83,6 +86,11 @@
 
         <section class="grupo">
           <h2>Exportar</h2>
+          <div class="control">
+            <label for="enfoque">Enfoque</label>
+            <output for="enfoque" id="enfoque-valor">30</output>
+            <input id="enfoque" type="range" min="0" max="100" step="1" value="30">
+          </div>
           <p class="detalle" id="medidas-salida"></p>
           <button id="btn-exportar" class="boton boton-primario boton-ancho" type="button">Descargar JPEG</button>
         </section>
