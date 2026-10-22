@@ -5,6 +5,7 @@
 pub mod color;
 pub mod decodificar;
 pub mod enfoque;
+pub mod estilos;
 pub mod exportar;
 pub mod proceso;
 pub mod recorte;
@@ -31,6 +32,20 @@ pub fn version() -> String {
 pub fn nombre_archivo(base: &str, estilo: &str, formato: &str) -> String {
     let formato = recorte::Formato::desde_texto(formato).unwrap_or_default();
     exportar::nombre_archivo(base, Some(estilo), formato)
+}
+
+/// Valida el contenido de `estilos.json` y devuelve el catálogo normalizado en
+/// JSON (ajustes recortados a su rango). Si no es válido, el error explica por qué.
+#[wasm_bindgen]
+pub fn cargar_catalogo(json: &str) -> Result<String, JsError> {
+    let catalogo = estilos::Catalogo::desde_json(json).map_err(|e| JsError::new(&e))?;
+    Ok(serde_json::to_string(&catalogo).unwrap_or_default())
+}
+
+/// El catálogo incrustado en el wasm, para cuando `estilos.json` no carga.
+#[wasm_bindgen]
+pub fn catalogo_incrustado() -> String {
+    serde_json::to_string(&estilos::Catalogo::incrustado()).unwrap_or_default()
 }
 
 /// Una foto abierta en el editor. Se decodifica una vez y todas las vistas

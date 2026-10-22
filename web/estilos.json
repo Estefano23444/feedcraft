@@ -1,0 +1,37 @@
+[
+  {
+    "id": "film-calido",
+    "nombre": "Film cálido",
+    "descripcion": "Tonos dorados, negros levantados, grano suave. Retratos, atardeceres y comida.",
+    "ajustes": { "brillo": 5, "contraste": -10, "saturacion": -8, "temperatura": 18, "tinte": 4, "sombras": 15, "vineta": 12, "grano": 10 },
+    "vigente_desde": "2026-10-01"
+  },
+  {
+    "id": "minimal-frio",
+    "nombre": "Minimal frío",
+    "descripcion": "Blancos limpios, tonos fríos y color contenido. Producto, arquitectura y fondos limpios.",
+    "ajustes": { "brillo": 8, "contraste": 6, "saturacion": -18, "temperatura": -14, "tinte": -2, "luces": -8, "sombras": 6 },
+    "vigente_desde": "2026-10-01"
+  },
+  {
+    "id": "alto-contraste-urbano",
+    "nombre": "Alto contraste urbano",
+    "descripcion": "Contraste fuerte, sombras profundas, color sobrio y viñeta marcada. Calle, noche y moda.",
+    "ajustes": { "brillo": -3, "contraste": 30, "saturacion": -12, "temperatura": -4, "luces": -12, "sombras": -10, "vineta": 22, "grano": 8 },
+    "vigente_desde": "2026-10-01"
+  },
+  {
+    "id": "pastel-suave",
+    "nombre": "Pastel suave",
+    "descripcion": "Luz aireada, contraste bajo y colores suaves y cálidos. Lifestyle, interiores y flores.",
+    "ajustes": { "brillo": 12, "contraste": -18, "saturacion": -12, "temperatura": 6, "tinte": 6, "luces": -10, "sombras": 20 },
+    "vigente_desde": "2026-10-01"
+  },
+  {
+    "id": "natural-mejorado",
+    "nombre": "Natural mejorado",
+    "descripcion": "Corrección sutil sin estilo marcado: más detalle en sombras y color algo más vivo. Sirve para cualquier foto.",
+    "ajustes": { "brillo": 3, "contraste": 6, "saturacion": 6, "luces": -6, "sombras": 8 },
+    "vigente_desde": "2026-10-01"
+  }
+]

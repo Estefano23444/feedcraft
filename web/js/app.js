@@ -23,7 +23,9 @@ const estado = {
   ampliar: false,
   enfoque: 30,
   calidad: 92,
+  /** Id del estilo aplicado (RF-17); vacío si no hay ninguno. */
   estilo: '',
+  catalogo: [],
 };
 
 /** Marco actual en coordenadas normalizadas, derivado de formato, centro y zoom. */
@@ -85,6 +87,8 @@ async function cargarArchivo(archivo) {
     estado.info = info;
     estado.nombre = nombreBase(archivo.name);
     estado.ajustes = { ...AJUSTES_CERO };
+    estado.estilo = '';
+    marcarEstilo();
     estado.centro = { cx: 0.5, cy: 0.5 };
     estado.zoom = 1;
     estado.ampliar = false;
@@ -237,9 +241,65 @@ const controles = crearControles($('ajustes'), (id, valor) => {
 
 $('btn-restablecer').addEventListener('click', () => {
   estado.ajustes = { ...AJUSTES_CERO };
+  estado.estilo = '';
   controles.mostrar(estado.ajustes);
+  marcarEstilo();
   pedirVista();
 });
+
+// ---------- Estilos (RF-17) ----------
+
+async function cargarCatalogo() {
+  let json = null;
+  try {
+    const respuesta = await fetch('estilos.json', { cache: 'no-store' });
+    if (respuesta.ok) json = await respuesta.text();
+  } catch {
+    // Sin red: el worker usa el catálogo incrustado.
+  }
+  try {
+    const { estilos, aviso } = await puente.llamar('catalogo', { json });
+    estado.catalogo = estilos;
+    pintarEstilos();
+    if (aviso) avisar(`${aviso.replace(/\.?$/, '.')} Se usa el catálogo incluido en la app.`, true);
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+function pintarEstilos() {
+  const contenedor = $('estilos');
+  contenedor.innerHTML = '';
+  for (const e of estado.catalogo) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.dataset.estilo = e.id;
+    chip.textContent = e.nombre;
+    chip.title = e.descripcion;
+    chip.addEventListener('click', () => aplicarEstilo(e.id));
+    contenedor.append(chip);
+  }
+  marcarEstilo();
+}
+
+function aplicarEstilo(id) {
+  const e = estado.catalogo.find((x) => x.id === id);
+  if (!e) return;
+  estado.estilo = id;
+  estado.ajustes = { ...AJUSTES_CERO, ...e.ajustes };
+  controles.mostrar(estado.ajustes);
+  marcarEstilo();
+  pedirVista();
+}
+
+function marcarEstilo() {
+  for (const chip of $('estilos').children) chip.setAttribute('aria-pressed', String(chip.dataset.estilo === estado.estilo));
+  const e = estado.catalogo.find((x) => x.id === estado.estilo);
+  $('descripcion-estilo').textContent = e ? e.descripcion : 'Aplica un estilo con un clic y ajústalo a tu gusto.';
+}
+
+cargarCatalogo();
 
 // ---------- Vista previa en vivo (RF-10) ----------
 // Si llegan cambios mientras el motor trabaja, solo se procesa el último.

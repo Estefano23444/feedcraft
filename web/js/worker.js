@@ -16,6 +16,19 @@ function exigirFoto() {
 const manejadores = {
   version: () => ({ valor: nucleo.version() }),
 
+  /** Valida estilos.json; si falta o no es válido, usa el catálogo incrustado. */
+  catalogo({ json }) {
+    let aviso = json ? null : 'No se pudo leer estilos.json.';
+    if (json) {
+      try {
+        return { valor: { estilos: JSON.parse(nucleo.cargar_catalogo(json)), aviso } };
+      } catch (e) {
+        aviso = e.message;
+      }
+    }
+    return { valor: { estilos: JSON.parse(nucleo.catalogo_incrustado()), aviso } };
+  },
+
   cargar({ bytes, lado }) {
     const inicio = performance.now();
     editor?.free();

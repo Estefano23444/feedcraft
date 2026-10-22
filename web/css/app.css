@@ -429,6 +429,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chip:hover { border-color: var(--acento); }
 .chip[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
 
+.descripcion-estilo { margin: 10px 0 0; min-height: 2.9em; }
+
 /* Mensajes en línea */
 
 .mensaje {
