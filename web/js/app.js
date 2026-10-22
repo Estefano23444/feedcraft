@@ -4,6 +4,7 @@
 import { crearPuente } from './puente.js';
 import { AJUSTES_CERO, crearControles, pintarPista } from './ajustes.js';
 import { FORMATOS, calcularMarco, crearMarco, formatoPorId } from './recorte.js';
+import * as groq from './groq.js';
 
 const LADO_VISTA = 1600;
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -26,6 +27,9 @@ const estado = {
   /** Id del estilo aplicado (RF-17); vacío si no hay ninguno. */
   estilo: '',
   catalogo: [],
+  /** Última sugerencia de la IA ya validada por Rust, y la variante elegida. */
+  sugerencia: null,
+  variante: 0,
 };
 
 /** Marco actual en coordenadas normalizadas, derivado de formato, centro y zoom. */
@@ -88,6 +92,9 @@ async function cargarArchivo(archivo) {
     estado.nombre = nombreBase(archivo.name);
     estado.ajustes = { ...AJUSTES_CERO };
     estado.estilo = '';
+    estado.sugerencia = null;
+    $('ia-resultado').hidden = true;
+    $('ia-error').hidden = true;
     marcarEstilo();
     estado.centro = { cx: 0.5, cy: 0.5 };
     estado.zoom = 1;
@@ -300,6 +307,149 @@ function marcarEstilo() {
 }
 
 cargarCatalogo();
+
+// ---------- IA con Groq (RF-18, RF-20, RF-21, RNF-05) ----------
+
+/** Abre un diálogo modal y resuelve con el botón que lo cerró. */
+function preguntar(dialogo) {
+  return new Promise((resolver) => {
+    dialogo.returnValue = '';
+    dialogo.addEventListener('close', () => resolver(dialogo.returnValue), { once: true });
+    dialogo.showModal();
+  });
+}
+
+for (const idioma of groq.IDIOMAS) $('cfg-idioma').append(new Option(idioma, idioma));
+
+function mostrarConfig(config, clave) {
+  $('cfg-clave').value = clave;
+  $('cfg-idioma').value = config.idioma;
+  $('cfg-modelo').value = config.modelo;
+  $('cfg-url').value = config.baseURL;
+}
+
+$('cfg-defecto').addEventListener('click', () => mostrarConfig(groq.CONFIG_POR_DEFECTO, $('cfg-clave').value));
+$('cfg-borrar').addEventListener('click', () => {
+  groq.guardarClave('');
+  $('cfg-clave').value = '';
+  avisar('Clave de Groq borrada de este navegador.');
+});
+$('btn-config-ia').addEventListener('click', () => configurarIa());
+
+/** RF-20: pide la clave una vez y la guarda solo en este navegador. */
+async function configurarIa(mensaje = '') {
+  mostrarConfig(groq.leerConfig(), groq.leerClave());
+  $('cfg-mensaje').hidden = !mensaje;
+  $('cfg-mensaje').textContent = mensaje;
+  if ((await preguntar($('dialogo-ia'))) !== 'guardar') return false;
+  groq.guardarClave($('cfg-clave').value);
+  groq.guardarConfig({
+    idioma: $('cfg-idioma').value,
+    modelo: $('cfg-modelo').value.trim() || groq.CONFIG_POR_DEFECTO.modelo,
+    baseURL: $('cfg-url').value.trim() || groq.CONFIG_POR_DEFECTO.baseURL,
+  });
+  return true;
+}
+
+$('btn-ia').addEventListener('click', sugerirConIa);
+
+async function sugerirConIa() {
+  if (!estado.info) return;
+  if (!groq.leerClave()) {
+    await configurarIa('Para usar la IA necesitas una clave de Groq.');
+    if (!groq.leerClave()) return;
+  }
+  // RNF-05: antes del primer uso, explicar qué se envía.
+  if (!groq.avisoAceptado()) {
+    if ((await preguntar($('dialogo-privacidad'))) !== 'aceptar') return;
+    groq.aceptarAviso();
+  }
+
+  $('ia-error').hidden = true;
+  $('btn-ia').disabled = true;
+  ocupado(true, 'La IA está mirando tu foto…');
+  try {
+    const imagenBase64 = await puente.llamar('copiaIa');
+    const { sugerencia, error } = await groq.pedirSugerencia({
+      clave: groq.leerClave(),
+      config: groq.leerConfig(),
+      imagenBase64,
+      catalogo: estado.catalogo,
+      normalizar: (texto) => puente.llamar('normalizar', { texto, catalogo: estado.catalogo }),
+      respaldo: (motivo) => puente.llamar('respaldo', { catalogo: estado.catalogo, motivo }),
+    });
+    aplicarSugerencia(sugerencia);
+    if (error) mostrarErrorIa(error.mensaje);
+  } catch (e) {
+    mostrarErrorIa(`No se pudo pedir la sugerencia: ${e.message}`);
+  } finally {
+    ocupado(false);
+    $('btn-ia').disabled = false;
+  }
+}
+
+function mostrarErrorIa(mensaje) {
+  $('ia-error').textContent = mensaje;
+  $('ia-error').hidden = false;
+}
+
+/** Aplica formato, centro de interés (RF-07) y la primera variante. */
+function aplicarSugerencia(s) {
+  estado.sugerencia = s;
+  estado.centro = { cx: s.recorte.cx, cy: s.recorte.cy };
+  estado.zoom = 1;
+  $('zoom').value = '100';
+  $('zoom-valor').textContent = '100 %';
+  pintarPista($('zoom'));
+  elegirFormato(s.formato);
+  pintarSugerencia();
+  aplicarVariante(0);
+}
+
+function aplicarVariante(i) {
+  const v = estado.sugerencia?.variantes[i];
+  if (!v) return;
+  estado.variante = i;
+  estado.estilo = v.estilo;
+  estado.ajustes = { ...AJUSTES_CERO, ...v.ajustes };
+  controles.mostrar(estado.ajustes);
+  marcarEstilo();
+  for (const b of $('ia-variantes').children) b.setAttribute('aria-pressed', String(Number(b.dataset.variante) === i));
+  pedirVista();
+}
+
+function pintarSugerencia() {
+  const s = estado.sugerencia;
+  const lista = $('ia-variantes');
+  lista.innerHTML = '';
+  s.variantes.forEach((v, i) => {
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'variante-ia';
+    boton.dataset.variante = String(i);
+    const nombre = document.createElement('strong');
+    nombre.textContent = `${i + 1}. ${estado.catalogo.find((e) => e.id === v.estilo)?.nombre ?? v.estilo}`;
+    const motivo = document.createElement('span');
+    motivo.textContent = v.motivo || 'Sin comentario';
+    boton.append(nombre, motivo);
+    boton.addEventListener('click', () => aplicarVariante(i));
+    lista.append(boton);
+  });
+  $('caption').value = s.caption;
+  $('hashtags').value = s.hashtags.join(' ');
+  $('ia-resultado').hidden = false;
+}
+
+$('btn-copiar').addEventListener('click', async () => {
+  const texto = [$('caption').value.trim(), $('hashtags').value.trim()].filter(Boolean).join('\n\n');
+  try {
+    await navigator.clipboard.writeText(texto);
+  } catch {
+    $('caption').select();
+    document.execCommand('copy');
+  }
+  avisar('Caption y hashtags copiados.');
+});
 
 // ---------- Vista previa en vivo (RF-10) ----------
 // Si llegan cambios mientras el motor trabaja, solo se procesa el último.

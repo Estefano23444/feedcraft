@@ -19,6 +19,10 @@
       FeedCraft
     </div>
     <div class="barra-acciones">
+      <button id="btn-config-ia" class="boton boton-fantasma" type="button" title="Clave de Groq, idioma y modelo">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+        Configurar IA
+      </button>
       <button id="btn-nueva" class="boton boton-fantasma" type="button" hidden>Otra foto</button>
     </div>
   </header>
@@ -58,6 +62,24 @@
       </div>
 
       <aside class="panel">
+        <section class="grupo grupo-ia">
+          <button id="btn-ia" class="boton boton-ia" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 5.8L20 10l-5.6 2.2L12 18l-2.4-5.8L4 10l5.6-2.2z"/><path d="M19 14l1 2.5 2.5 1-2.5 1L19 21l-1-2.5-2.5-1 2.5-1z"/></svg>
+            Sugerir con IA
+          </button>
+          <p class="detalle nota-ia">Propone estilo, formato, caption y hashtags. Envía a Groq solo una copia de 512 px.</p>
+          <div id="ia-error" class="mensaje mensaje-error" role="alert" hidden></div>
+          <div id="ia-resultado" hidden>
+            <h3 class="subgrupo">Propuestas de la IA</h3>
+            <div id="ia-variantes" class="variantes-ia"></div>
+            <label class="etiqueta" for="caption">Caption</label>
+            <textarea id="caption" class="area" rows="4"></textarea>
+            <label class="etiqueta" for="hashtags">Hashtags</label>
+            <textarea id="hashtags" class="area" rows="2"></textarea>
+            <button id="btn-copiar" class="boton boton-ancho" type="button">Copiar caption y hashtags</button>
+          </div>
+        </section>
+
         <section class="grupo">
           <h2>Formato</h2>
           <div class="segmento" id="formatos" role="group" aria-label="Formato de Instagram"></div>
@@ -108,6 +130,51 @@
       </aside>
     </section>
   </main>
+
+  <dialog id="dialogo-ia" class="dialogo" aria-labelledby="titulo-dialogo-ia">
+    <form method="dialog">
+      <h2 id="titulo-dialogo-ia">Configurar IA</h2>
+      <p id="cfg-mensaje" class="mensaje mensaje-aviso" hidden></p>
+      <p class="detalle">FeedCraft usa Groq para sugerir estilo, formato, caption y hashtags. La clave se guarda solo en este navegador y solo se envía a Groq.</p>
+      <label class="etiqueta" for="cfg-clave">Clave de Groq</label>
+      <input id="cfg-clave" class="campo" type="password" autocomplete="off" spellcheck="false" placeholder="gsk_…">
+      <p class="detalle">Puedes crear una gratis en <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">console.groq.com/keys</a>.</p>
+      <label class="etiqueta" for="cfg-idioma">Idioma del caption y los hashtags</label>
+      <select id="cfg-idioma" class="campo"></select>
+      <details class="avanzado">
+        <summary>Avanzado</summary>
+        <label class="etiqueta" for="cfg-modelo">Modelo (con visión)</label>
+        <input id="cfg-modelo" class="campo" type="text" spellcheck="false">
+        <label class="etiqueta" for="cfg-url">URL base de la API</label>
+        <input id="cfg-url" class="campo" type="url" spellcheck="false">
+        <p class="detalle">Si publicas la app para otras personas, apunta aquí a un intermediario (por ejemplo un webhook de n8n) que guarde la clave.</p>
+        <button id="cfg-defecto" class="enlace" type="button">Restaurar valores por defecto</button>
+      </details>
+      <div class="dialogo-acciones">
+        <button id="cfg-borrar" class="boton boton-fantasma" type="button">Borrar clave</button>
+        <span class="espaciador"></span>
+        <button class="boton" value="cancelar">Cancelar</button>
+        <button class="boton boton-primario" value="guardar">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialogo-privacidad" class="dialogo" aria-labelledby="titulo-privacidad">
+    <form method="dialog">
+      <h2 id="titulo-privacidad">Antes de usar la IA</h2>
+      <p>Para sugerir estilo y formato, FeedCraft envía a <strong>Groq</strong> una <strong>copia reducida de tu foto (512 px)</strong> y la lista de estilos.</p>
+      <ul class="lista">
+        <li>La foto original nunca sale de tu equipo.</li>
+        <li>Sin pulsar «Sugerir con IA» no se envía nada.</li>
+        <li>La respuesta se revisa antes de aplicarse y siempre puedes cambiarla.</li>
+      </ul>
+      <div class="dialogo-acciones">
+        <span class="espaciador"></span>
+        <button class="boton" value="cancelar">Cancelar</button>
+        <button class="boton boton-primario" value="aceptar">Entendido, continuar</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 

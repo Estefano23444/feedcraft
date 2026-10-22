@@ -6,8 +6,65 @@
 // `document.body.dataset.estado = 'terminado'` permiten leerlas desde Playwright.
 
 import { crearPuente } from './puente.js';
+import * as groq from './groq.js';
 
 const puente = crearPuente();
+
+let catalogo = null;
+async function obtenerCatalogo() {
+  if (!catalogo) {
+    const json = await fetch('estilos.json').then((r) => r.text()).catch(() => null);
+    catalogo = (await puente.llamar('catalogo', { json })).estilos;
+  }
+  return catalogo;
+}
+
+/** fetch simulado: devuelve `contenido` como respuesta del modelo, o lo que diga `fabricar`. */
+function fetchSimulado(fabricar) {
+  const llamadas = [];
+  const traer = async (url, opciones) => {
+    llamadas.push({ url, opciones });
+    return fabricar(llamadas.length);
+  };
+  return { traer, llamadas };
+}
+
+const respuestaModelo = (contenido) =>
+  new Response(JSON.stringify({ choices: [{ message: { content: contenido } }] }), { status: 200 });
+
+async function pedirConFetch(traer) {
+  const estilos = await obtenerCatalogo();
+  return groq.pedirSugerencia({
+    clave: 'gsk_prueba',
+    config: groq.CONFIG_POR_DEFECTO,
+    imagenBase64: 'AAAA',
+    catalogo: estilos,
+    normalizar: (texto) => puente.llamar('normalizar', { texto, catalogo: estilos }),
+    respaldo: (motivo) => puente.llamar('respaldo', { catalogo: estilos, motivo }),
+    fetch: traer,
+  });
+}
+
+/** Una sugerencia que puede llegar a la interfaz: 3 estilos distintos del catálogo. */
+function esValida(s, estilos) {
+  const ids = s.variantes.map((v) => v.estilo);
+  return ['1:1', '4:5', '3:4', '9:16'].includes(s.formato)
+    && ids.length === 3 && new Set(ids).size === 3
+    && ids.every((id) => estilos.some((e) => e.id === id));
+}
+
+const RESPUESTAS_ROTAS = [
+  'Claro, te recomiendo un estilo cálido.',
+  '{"formato": "4:5", "variantes": [{"estilo": "film-calido"',
+  '',
+  '[1, 2, 3]',
+  '{"formato":"16:9","variantes":[{"estilo":"cyberpunk"},{"estilo":"vaporwave"},{"estilo":"<img src=x onerror=alert(1)>"}]}',
+  '<think>...</think>```json\n{"variantes":[{"estilo":"noche-neon"},{"estilo":"alto-contraste-urbano"}]}\n```',
+  '{"recorte":{"cx":5,"cy":-2},"variantes":[{"estilo":"film-calido","ajustes_extra":{"brillo":999}},{"estilo":"film-calido"},{"estilo":"film-calido"}]}',
+  '{"formato":45,"recorte":"centro","variantes":"tres","caption":["no"],"hashtags":"#uno #dos"}',
+  '{}',
+  '{"a":'.repeat(3000) + '1' + '}'.repeat(3000),
+];
 
 /** JPEG sintético con aspecto de foto, generado en el navegador. */
 async function jpegSintetico(ancho, alto) {
@@ -91,6 +148,103 @@ export const PRUEBAS = [
         ok: s.pequena && s.ancho < 1080 && !s.ampliada && ampliada.ancho === 1080,
         detalle: `sin elegir: ${s.ancho}×${s.alto}${s.pequena ? ' + aviso' : ''} · al elegir ampliar: ${ampliada.ancho}×${ampliada.alto}`,
       };
+    },
+  },
+  {
+    id: 'T-07',
+    nombre: '10 respuestas rotas o inventadas: nunca falla y cae en Natural mejorado',
+    verifica: 'Sección 5',
+    async correr() {
+      const estilos = await obtenerCatalogo();
+      const fallos = [];
+      let reintentos = 0;
+      for (const [i, contenido] of RESPUESTAS_ROTAS.entries()) {
+        const { traer, llamadas } = fetchSimulado(() => respuestaModelo(contenido));
+        const { sugerencia } = await pedirConFetch(traer);
+        if (llamadas.length === 2) reintentos++;
+        const natural = sugerencia.variantes.some((v) => v.estilo === 'natural-mejorado');
+        if (!esValida(sugerencia, estilos) || !natural || llamadas.length > 2) fallos.push(i + 1);
+      }
+      return {
+        ok: fallos.length === 0,
+        detalle: fallos.length ? `fallan las respuestas ${fallos.join(', ')}` : `10/10 válidas con Natural mejorado; ${reintentos} reintentaron una vez`,
+      };
+    },
+  },
+  {
+    id: 'T-07b',
+    nombre: 'Errores 401, 429, 500 y red: mensaje claro, sin fallar',
+    verifica: 'Sección 5 · regla 4',
+    async correr() {
+      const estilos = await obtenerCatalogo();
+      const casos = [
+        ['clave', () => new Response('{"error":{"message":"Invalid API Key"}}', { status: 401 })],
+        ['limite', () => new Response('{}', { status: 429, headers: { 'retry-after': '20' } })],
+        ['servidor', () => new Response('{"error":{"message":"The model has been decommissioned"}}', { status: 400 })],
+        ['red', () => { throw new TypeError('Failed to fetch'); }],
+      ];
+      const detalles = [];
+      let ok = true;
+      for (const [tipo, fabricar] of casos) {
+        const { traer } = fetchSimulado(fabricar);
+        const r = await pedirConFetch(traer);
+        ok &&= r.error?.tipo === tipo && esValida(r.sugerencia, estilos) && r.error.mensaje.length > 20;
+        detalles.push(`${tipo}: «${r.error?.mensaje}»`);
+      }
+      // Una respuesta buena después de una rota: el reintento la rescata.
+      const { traer, llamadas } = fetchSimulado((n) => respuestaModelo(n === 1 ? 'roto' : '{"formato":"1:1","variantes":[{"estilo":"pastel-suave"},{"estilo":"minimal-frio"},{"estilo":"film-calido"}]}'));
+      const r = await pedirConFetch(traer);
+      ok &&= !r.error && r.sugerencia.formato === '1:1' && llamadas.length === 2;
+      detalles.push(`reintento: ${r.sugerencia.formato} ${r.sugerencia.variantes[0].estilo}`);
+      return { ok, detalle: detalles.join(' · ') };
+    },
+  },
+  {
+    id: 'RF-20',
+    nombre: 'La clave se guarda solo en el navegador',
+    verifica: 'RF-20, RNF-06',
+    async correr() {
+      const anterior = groq.leerClave();
+      groq.guardarClave('gsk_clave_de_prueba');
+      const guardada = groq.leerClave();
+      const { traer, llamadas } = fetchSimulado(() => respuestaModelo('{}'));
+      await pedirConFetch(traer);
+      const { opciones, url } = llamadas[0];
+      const enCabecera = opciones.headers.Authorization === 'Bearer gsk_prueba';
+      const enCuerpo = opciones.body.includes('gsk_');
+      groq.guardarClave(anterior);
+      return {
+        ok: guardada === 'gsk_clave_de_prueba' && enCabecera && !enCuerpo && url.startsWith(groq.CONFIG_POR_DEFECTO.baseURL),
+        detalle: `localStorage ✓ · solo en la cabecera Authorization ✓ · destino ${new URL(url).host}`,
+      };
+    },
+  },
+  {
+    id: 'T-08',
+    nombre: 'Sin red: todo funciona excepto la IA',
+    verifica: 'RNF-04',
+    async correr() {
+      const original = globalThis.fetch;
+      const pedidas = [];
+      globalThis.fetch = async (url) => {
+        pedidas.push(String(url));
+        throw new TypeError('Failed to fetch');
+      };
+      try {
+        const estilos = await obtenerCatalogo();
+        const bytes = await jpegSintetico(2400, 3000);
+        await puente.llamar('cargar', { bytes, lado: 1600 }, [bytes]);
+        const vista = await puente.llamar('vista', { ajustes: estilos[0].ajustes });
+        const exportada = await puente.llamar('exportar', { formato: '4:5', ajustes: estilos[0].ajustes, nombre_base: 'sin-red', estilo: estilos[0].id });
+        const r = await pedirConFetch(globalThis.fetch);
+        const ok = vista.ancho > 0 && exportada.jpeg.byteLength > 10_000 && r.error?.tipo === 'red' && esValida(r.sugerencia, estilos);
+        return {
+          ok,
+          detalle: `abrir, vista previa y exportar sin red ✓ (${exportada.nombre}) · IA: «${r.error?.mensaje}» · peticiones de red intentadas: ${pedidas.length} (solo Groq)`,
+        };
+      } finally {
+        globalThis.fetch = original;
+      }
     },
   },
 ];

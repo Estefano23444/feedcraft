@@ -13,6 +13,14 @@ function exigirFoto() {
   return editor;
 }
 
+function aBase64(bytes) {
+  let binario = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binario += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binario);
+}
+
 const manejadores = {
   version: () => ({ valor: nucleo.version() }),
 
@@ -47,6 +55,19 @@ const manejadores = {
       valor: { rgba: rgba.buffer, ancho: ed.vista_ancho(), alto: ed.vista_alto(), ms: performance.now() - inicio },
       transferir: [rgba.buffer],
     };
+  },
+
+  /** Copia de 512 px en base64 para la IA (sección 5). */
+  copiaIa() {
+    return { valor: aBase64(exigirFoto().copia_ia()) };
+  },
+
+  normalizar({ texto, catalogo }) {
+    return { valor: JSON.parse(nucleo.normalizar_sugerencia(texto, JSON.stringify(catalogo))) };
+  },
+
+  respaldo({ catalogo, motivo }) {
+    return { valor: JSON.parse(nucleo.sugerencia_respaldo(JSON.stringify(catalogo), motivo)) };
   },
 
   evaluar(parametros) {

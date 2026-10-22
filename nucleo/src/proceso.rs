@@ -12,6 +12,9 @@ use crate::exportar;
 use crate::recorte::{self, Formato, Salida};
 use crate::redimension::{self, RecortePx};
 
+/// Lado mayor de la copia que se envía a la IA (sección 5).
+pub const LADO_IA: u32 = 512;
+
 pub struct Sesion {
     pub foto: RgbImage,
     pub vista: RgbImage,
@@ -106,6 +109,14 @@ impl Sesion {
     pub fn evaluar(&self, parametros: &ParametrosExportacion) -> Salida {
         let (w, h) = self.foto.dimensions();
         recorte::salida(recorte_px(parametros, w, h), parametros.formato, parametros.ampliar)
+    }
+
+    /// Copia de 512 px para la IA, reducida desde la original (nunca se usa
+    /// para exportar).
+    pub fn copia_ia(&self) -> Result<Vec<u8>, String> {
+        let (ancho, alto) = redimension::encajar(self.foto.width(), self.foto.height(), LADO_IA);
+        let copia = redimension::redimensionar(&self.foto, None, ancho, alto)?;
+        exportar::codificar_jpeg(&copia, 85)
     }
 
     pub fn exportar(&self, parametros: &ParametrosExportacion) -> Result<Vec<u8>, String> {

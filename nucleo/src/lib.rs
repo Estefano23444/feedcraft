@@ -7,6 +7,7 @@ pub mod decodificar;
 pub mod enfoque;
 pub mod estilos;
 pub mod exportar;
+pub mod ia;
 pub mod proceso;
 pub mod recorte;
 pub mod redimension;
@@ -48,6 +49,22 @@ pub fn catalogo_incrustado() -> String {
     serde_json::to_string(&estilos::Catalogo::incrustado()).unwrap_or_default()
 }
 
+/// Convierte la respuesta de la IA en una sugerencia válida (JSON). Solo falla
+/// si la respuesta no contiene un JSON legible: la app reintenta una vez.
+#[wasm_bindgen]
+pub fn normalizar_sugerencia(texto: &str, catalogo: &str) -> Result<String, JsError> {
+    let catalogo = estilos::Catalogo::desde_json(catalogo).unwrap_or_else(|_| estilos::Catalogo::incrustado());
+    let sugerencia = ia::normalizar(texto, &catalogo).map_err(|e| JsError::new(&e))?;
+    Ok(serde_json::to_string(&sugerencia).unwrap_or_default())
+}
+
+/// La opción segura: Natural mejorado en 4:5 y dos alternativas del catálogo.
+#[wasm_bindgen]
+pub fn sugerencia_respaldo(catalogo: &str, motivo: &str) -> String {
+    let catalogo = estilos::Catalogo::desde_json(catalogo).unwrap_or_else(|_| estilos::Catalogo::incrustado());
+    serde_json::to_string(&ia::respaldo(&catalogo, motivo)).unwrap_or_default()
+}
+
 /// Una foto abierta en el editor. Se decodifica una vez y todas las vistas
 /// previas y exportaciones parten de ella.
 #[wasm_bindgen]
@@ -86,6 +103,12 @@ impl Editor {
     pub fn evaluar(&self, parametros: &str) -> Result<String, JsError> {
         let parametros: ParametrosExportacion = leer_json(parametros)?;
         Ok(serde_json::to_string(&self.sesion.evaluar(&parametros)).unwrap_or_default())
+    }
+
+    /// Copia reducida (512 px de lado mayor, JPEG) que se envía a la IA. Es lo
+    /// único que sale del navegador, y solo si el usuario pulsa el botón de IA.
+    pub fn copia_ia(&self) -> Result<Vec<u8>, JsError> {
+        self.sesion.copia_ia().map_err(|e| JsError::new(&e))
     }
 
     /// Procesa la foto original completa y devuelve el JPEG final.

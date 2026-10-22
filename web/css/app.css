@@ -447,6 +447,66 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .detalle { color: var(--texto-suave); font-size: 13px; }
 
+/* ---------- IA ---------- */
+
+.nota-ia { margin: 8px 0 0; }
+#ia-resultado { margin-top: 14px; }
+
+.variantes-ia { display: grid; gap: 8px; margin-bottom: 12px; }
+
+.variante-ia {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  background: var(--superficie);
+  text-align: left;
+  cursor: pointer;
+}
+.variante-ia:hover { border-color: var(--acento); }
+.variante-ia[aria-pressed="true"] { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; background: var(--acento-suave); }
+.variante-ia strong { font-size: 14px; }
+.variante-ia span { color: var(--texto-suave); font-size: 13px; }
+
+.etiqueta { display: block; margin: 10px 0 4px; font-size: 13px; font-weight: 600; }
+
+.area, .campo {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  background: var(--superficie);
+  font-size: 14px;
+}
+.area { resize: vertical; line-height: 1.4; }
+.area:focus, .campo:focus { outline: 2px solid var(--acento); outline-offset: -1px; border-color: transparent; }
+#btn-copiar { margin-top: 10px; }
+
+/* ---------- Diálogos ---------- */
+
+.dialogo {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 24px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.3);
+}
+.dialogo::backdrop { background: rgb(10 10 14 / 0.55); }
+.dialogo h2 { margin: 0 0 10px; font-size: 19px; }
+.dialogo p { margin: 0 0 10px; }
+.dialogo .detalle { margin: 6px 0 0; }
+.dialogo a { color: var(--acento); }
+.lista { margin: 0 0 8px; padding-left: 20px; }
+.lista li { margin: 4px 0; }
+.avanzado { margin-top: 14px; }
+.avanzado summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.dialogo-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.espaciador { flex: 1; }
+
 /* ---------- Avisos flotantes ---------- */
 
 .toast {
