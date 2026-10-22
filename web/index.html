@@ -56,11 +56,35 @@
 
       <aside class="panel">
         <section class="grupo">
+          <h2>Formato</h2>
+          <div class="segmento" id="formatos" role="group" aria-label="Formato de Instagram"></div>
+          <div class="control control-zoom">
+            <label for="zoom">Zoom del recorte</label>
+            <output for="zoom" id="zoom-valor">100 %</output>
+            <input id="zoom" type="range" min="100" max="300" step="1" value="100">
+          </div>
+          <div id="aviso-pequena" class="mensaje mensaje-aviso" hidden>
+            <strong>Foto pequeña para este formato</strong>
+            <span id="aviso-pequena-texto"></span>
+            <div class="acciones">
+              <button class="boton" type="button" data-ampliar="false" aria-pressed="true">Mantener tamaño real</button>
+              <button class="boton" type="button" data-ampliar="true" aria-pressed="false">Ampliar a 1080 px</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="grupo">
           <div class="grupo-cabecera">
             <h2>Ajustes</h2>
             <button id="btn-restablecer" class="enlace" type="button">Restablecer</button>
           </div>
           <div id="ajustes"></div>
+        </section>
+
+        <section class="grupo">
+          <h2>Exportar</h2>
+          <p class="detalle" id="medidas-salida"></p>
+          <button id="btn-exportar" class="boton boton-primario boton-ancho" type="button">Descargar JPEG</button>
         </section>
       </aside>
     </section>

@@ -35,6 +35,16 @@ const manejadores = {
       transferir: [rgba.buffer],
     };
   },
+
+  evaluar(parametros) {
+    return { valor: JSON.parse(exigirFoto().evaluar(JSON.stringify(parametros))) };
+  },
+
+  exportar(parametros) {
+    const inicio = performance.now();
+    const jpeg = exigirFoto().exportar(JSON.stringify(parametros));
+    return { valor: { jpeg: jpeg.buffer, ms: performance.now() - inicio }, transferir: [jpeg.buffer] };
+  },
 };
 
 self.onmessage = async (evento) => {

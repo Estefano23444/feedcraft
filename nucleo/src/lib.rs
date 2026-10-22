@@ -4,12 +4,14 @@
 
 pub mod color;
 pub mod decodificar;
+pub mod exportar;
 pub mod proceso;
+pub mod recorte;
 pub mod redimension;
 
 use wasm_bindgen::prelude::*;
 
-use crate::proceso::{ParametrosVista, Sesion};
+use crate::proceso::{ParametrosExportacion, ParametrosVista, Sesion};
 
 #[wasm_bindgen(start)]
 pub fn iniciar() {
@@ -54,6 +56,18 @@ impl Editor {
     pub fn vista_previa(&self, parametros: &str) -> Result<Vec<u8>, JsError> {
         let parametros: ParametrosVista = leer_json(parametros)?;
         Ok(self.sesion.vista_previa(&parametros))
+    }
+
+    /// Medidas de la exportación y aviso de foto pequeña (RF-08), en JSON.
+    pub fn evaluar(&self, parametros: &str) -> Result<String, JsError> {
+        let parametros: ParametrosExportacion = leer_json(parametros)?;
+        Ok(serde_json::to_string(&self.sesion.evaluar(&parametros)).unwrap_or_default())
+    }
+
+    /// Procesa la foto original completa y devuelve el JPEG final.
+    pub fn exportar(&self, parametros: &str) -> Result<Vec<u8>, JsError> {
+        let parametros: ParametrosExportacion = leer_json(parametros)?;
+        self.sesion.exportar(&parametros).map_err(|e| JsError::new(&e))
     }
 }
 

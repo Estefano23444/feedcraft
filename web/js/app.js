@@ -3,6 +3,7 @@
 
 import { crearPuente } from './puente.js';
 import { AJUSTES_CERO, crearControles } from './ajustes.js';
+import { FORMATOS, calcularMarco, crearMarco, formatoPorId } from './recorte.js';
 
 const LADO_VISTA = 1600;
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -16,7 +17,26 @@ const estado = {
   nombre: 'foto',
   ajustes: { ...AJUSTES_CERO },
   original: false,
+  formato: '4:5',
+  centro: { cx: 0.5, cy: 0.5 },
+  zoom: 1,
+  ampliar: false,
 };
+
+/** Marco actual en coordenadas normalizadas, derivado de formato, centro y zoom. */
+function marcoActual() {
+  const { ancho, alto } = estado.info;
+  return calcularMarco(ancho, alto, estado.formato, estado.centro.cx, estado.centro.cy, estado.zoom);
+}
+
+function parametrosExportacion() {
+  return {
+    formato: estado.formato,
+    marco: marcoActual(),
+    ajustes: estado.ajustes,
+    ampliar: estado.ampliar,
+  };
+}
 
 // ---------- Carga (RF-01) ----------
 
@@ -58,8 +78,14 @@ async function cargarArchivo(archivo) {
     estado.info = info;
     estado.nombre = nombreBase(archivo.name);
     estado.ajustes = { ...AJUSTES_CERO };
+    estado.centro = { cx: 0.5, cy: 0.5 };
+    estado.zoom = 1;
+    estado.ampliar = false;
     controles.mostrar(estado.ajustes);
+    $('zoom').value = '100';
+    $('zoom-valor').textContent = '100 %';
     prepararLienzo(info);
+    actualizarRecorte();
     pedirVista();
   } catch (e) {
     avisar(e.message, true);
@@ -91,6 +117,82 @@ function prepararLienzo(info) {
   if (info.perfil_convertido) partes.push(`${info.perfil_convertido} → sRGB`);
   if (info.tenia_transparencia) partes.push('transparencia sobre blanco');
   $('info-foto').textContent = partes.join(' · ');
+}
+
+// ---------- Formato y recorte (RF-04, RF-06, RF-08) ----------
+
+for (const f of FORMATOS) {
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.dataset.formato = f.id;
+  boton.setAttribute('aria-pressed', String(f.id === estado.formato));
+  const escala = 18 / f.alto;
+  boton.innerHTML = `<span class="forma" style="width:${Math.round(f.ancho * escala)}px;height:18px"></span>${f.id}<small>${f.ancho}×${f.alto}</small>`;
+  boton.addEventListener('click', () => elegirFormato(f.id));
+  $('formatos').append(boton);
+}
+
+function elegirFormato(id) {
+  estado.formato = id;
+  for (const b of $('formatos').children) b.setAttribute('aria-pressed', String(b.dataset.formato === id));
+  if (estado.info) actualizarRecorte();
+}
+
+const marco = crearMarco($('lienzo-caja'), {
+  alMover(centro) {
+    estado.centro = centro;
+  },
+  alSoltar() {
+    actualizarRecorte();
+  },
+  alZoom(delta) {
+    fijarZoom(estado.zoom + delta);
+  },
+});
+
+$('zoom').addEventListener('input', (e) => fijarZoom(Number(e.target.value) / 100));
+
+function fijarZoom(zoom) {
+  estado.zoom = Math.min(Math.max(zoom, 1), 3);
+  $('zoom').value = String(Math.round(estado.zoom * 100));
+  $('zoom-valor').textContent = `${Math.round(estado.zoom * 100)} %`;
+  if (estado.info) actualizarRecorte();
+}
+
+for (const boton of $('aviso-pequena').querySelectorAll('[data-ampliar]')) {
+  boton.addEventListener('click', () => {
+    estado.ampliar = boton.dataset.ampliar === 'true';
+    evaluarSalida();
+  });
+}
+
+/** Recalcula el marco con el centro, el formato y el zoom actuales. */
+function actualizarRecorte() {
+  const m = marcoActual();
+  estado.centro = { cx: m.x + m.ancho / 2, cy: m.y + m.alto / 2 };
+  marco.fijar(m);
+  evaluarSalida();
+}
+
+/** Pregunta al motor qué medidas tendrá la exportación (RF-08). */
+async function evaluarSalida() {
+  try {
+    const s = await puente.llamar('evaluar', parametrosExportacion());
+    const f = formatoPorId(estado.formato);
+    $('aviso-pequena').hidden = !s.pequena;
+    if (s.pequena) {
+      const recorte = Math.floor(marcoActual().ancho * estado.info.ancho);
+      $('aviso-pequena-texto').textContent =
+        `El recorte mide ${recorte} px de ancho y Instagram usa ${f.ancho} × ${f.alto}. ` +
+        'Ampliarla no añade detalle: puede verse menos nítida.';
+      for (const b of $('aviso-pequena').querySelectorAll('[data-ampliar]')) {
+        b.setAttribute('aria-pressed', String((b.dataset.ampliar === 'true') === estado.ampliar));
+      }
+    }
+    $('medidas-salida').textContent = `${s.ancho} × ${s.alto} px · JPEG${s.ampliada ? ' · ampliada' : ''}`;
+  } catch (e) {
+    avisar(e.message, true);
+  }
 }
 
 // ---------- Ajustes (RF-09) ----------
@@ -133,6 +235,36 @@ async function procesarVistas() {
     }
   }
   vistaEnCurso = false;
+}
+
+// ---------- Exportación ----------
+
+$('btn-exportar').addEventListener('click', async () => {
+  if (!estado.info) return;
+  const boton = $('btn-exportar');
+  boton.disabled = true;
+  ocupado(true, 'Exportando a resolución completa…');
+  const inicio = performance.now();
+  try {
+    const { jpeg } = await puente.llamar('exportar', parametrosExportacion());
+    const nombre = `${estado.nombre}_${formatoPorId(estado.formato).etiqueta}.jpg`;
+    descargar(new Blob([jpeg], { type: 'image/jpeg' }), nombre);
+    avisar(`Listo: ${nombre} (${((performance.now() - inicio) / 1000).toFixed(1)} s)`);
+  } catch (e) {
+    avisar(e.message, true);
+  } finally {
+    ocupado(false);
+    boton.disabled = false;
+  }
+});
+
+function descargar(blob, nombre) {
+  const url = URL.createObjectURL(blob);
+  const enlace = Object.assign(document.createElement('a'), { href: url, download: nombre });
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 // ---------- Utilidades de interfaz ----------
