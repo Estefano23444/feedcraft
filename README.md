@@ -115,6 +115,23 @@ Orden de exportación: decodificar → orientación EXIF → sRGB → ajustes de
 - La clave de Groq nunca va en el código ni en el repositorio (RNF-06). Si publicas la app para otras personas, cambia la **URL base** en *Configurar IA* para apuntar a un intermediario, por ejemplo un webhook de n8n que guarde la clave (RNF-07).
 - La respuesta de la IA se valida en Rust antes de aplicarse. Un estilo inventado se cambia por «Natural mejorado», los valores se recortan a su rango y un JSON roto se reintenta una vez antes de usar la opción segura.
 
+## Estado y próximos pasos
+
+**Estado (22 oct 2026):** las 8 etapas del plan de la especificación están terminadas. Pasan las 48 pruebas de `cargo test` y las 7 de `pruebas.html`. Cada etapa tiene su commit en el historial.
+
+**Pendiente para cerrar la primera versión:**
+
+1. **Prueba manual con 10 fotos reales** (definición de terminado de la etapa 8). Pega la clave en *Configurar IA*, abre cada foto y revisa que las 3 versiones tengan sentido.
+2. **Calibrar los estilos** en `web/estilos.json`. Los 5 estilos tienen valores de partida; se ajustan mirando el resultado en fotos reales.
+3. **Ampliar el corpus** a las 30 fotos que pide la sección 9. Hoy hay 19 en `pruebas/corpus/`, una carpeta que no se sube a git.
+
+**Siguientes funciones (P1):** carrusel de hasta 10 fotos con el formato de la primera (RF-03, RF-05), descarga de las 3 versiones en un ZIP (RF-16) y propuesta de estilos nuevos con búsqueda web de tendencias.
+
+**A tener en cuenta:**
+
+- Groq limita los tokens por minuto según la clave. Una clave gratuita da para unas 3 o 4 fotos por minuto, porque cada petición gasta unos 2.000 tokens. Al pasar el límite, la app avisa y sigue sin IA.
+- Groq retira modelos. Si la IA responde que el modelo no existe, cámbialo en *Configurar IA → Avanzado* por otro con visión.
+
 ## Fuera de alcance de esta versión
 
 Carrusel (RF-03, RF-05), descarga en ZIP (RF-16), búsqueda web de tendencias, video y reels, publicar directo en Instagram, cuentas de usuario, edición por zonas y generar o borrar objetos con IA.
