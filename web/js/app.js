@@ -23,7 +23,7 @@ const estado = {
   zoom: 1,
   ampliar: false,
   enfoque: 30,
-  calidad: 92,
+  calidad: 95,
   /** Id del estilo aplicado (RF-17); vacío si no hay ninguno. */
   estilo: '',
   catalogo: [],

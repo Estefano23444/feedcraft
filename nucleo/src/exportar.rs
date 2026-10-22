@@ -9,7 +9,9 @@ use jpeg_encoder::{ColorType, Encoder, SamplingFactor};
 
 use crate::recorte::Formato;
 
-pub const CALIDAD_POR_DEFECTO: u8 = 92;
+/// La especificación propone 92, pero en fotos nocturnas con ruido la
+/// compresión a 92 deja el SSIM por debajo de 0,97 (T-05); a 95 queda ≥ 0,98.
+pub const CALIDAD_POR_DEFECTO: u8 = 95;
 pub const CALIDAD_MINIMA: u8 = 80;
 pub const CALIDAD_MAXIMA: u8 = 100;
 
